@@ -1,0 +1,19 @@
+{
+  "name": "linkify-retroarch-history",
+  "version": "1.0.0",
+  "description": "Create desktop and application shortcuts to files recently played in Retroarch.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pandymic/linkify-retroarch-history.git"
+  },
+  "author": "Michal Pandyra <mike@pandymic.com>",
+  "bugs": {
+    "url": "https://github.com/pandymic/linkify-retroarch-history/issues"
+  },
+  "homepage": "https://github.com/pandymic/linkify-retroarch-history#readme",
+  "devDependencies": {
+    "fancy-log": "^2.0.0",
+    "gulp": "^4.0.2",
+    "gulp-plumber": "^1.2.1"
+  }
+}

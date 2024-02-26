@@ -1,0 +1,167 @@
+#!/usr/bin/env php
+<?php
+
+print 'Hello world!' . "\n";
+
+$bindir = '~/Roms/Binaries/';
+$cfgdir = '~/.config/retroarch/';
+
+$exec = file_get_contents( $cfgdir . 'content_history.lpl' );
+
+while ( false !== $exec ) {
+
+  $content_history = json_decode( $exec );
+  $exec = false;
+
+  if ( is_array( $content_history->items ) && !empty( $content_history->items ) ) {
+
+    $items = $content_history->items;
+    unset( $content_history );
+
+    if ( !isset( $items_last ) || $items_last !== $items ) {
+
+      foreach( $items as $index => $item ) {
+
+        $filename = $bindir . $item->label;
+
+        if ( file_exists( $filename ) ) {
+          print 'Skipping "' . $item->label . '" executable...' . "\n";
+        } else {
+          print 'Creating "' . $item->label . '" executable...' . "\n";
+
+          $system = substr( $item->db_name, 0, -4 );
+
+          $print = [ '#!/usr/bin/env bash' ];
+          $print[] = '/usr/bin/retroarch --libretro="' . $item->core_path . '" "' . $item->path . '"';
+          file_put_contents( $filename, implode( "\n", $print ) );
+          unset( $print );
+          print '... File created.' . "\n";
+          chmod( $filename, 0750 );
+          print '... Permissions set.' . "\n";
+          print '... Done!' . "\n";
+        }
+        
+        $metadir = $bindir . '.' . $item->label;
+        
+        if ( file_exists( $metadir ) ) {
+          print 'Skipping "' . $item->label . '" metadata...' . "\n";
+        } else {
+          print 'Creating "' . $item->label . '" metadata...' . "\n";
+          
+          mkdir( $metadir, 0750 );
+          print '... Directory created.' . "\n";
+          print '... Permissions set.' . "\n";
+          
+          copy( $cfgdir . 'thumbnails/' . $system . '/Named_Boxarts/' . $item->label . '.png', $metadir . '/logo.png' );
+          copy( $cfgdir . 'thumbnails/' . $system . '/Named_Snaps/' . $item->label . '.png', $metadir . '/cover.png' );
+          copy( $cfgdir . 'thumbnails/' . $system . '/Named_Titles/' . $item->label . '.png', $metadir . '/icon.png' );
+          
+          $icon = (object)[
+            'src' => imagecreatefrompng( $metadir . '/icon.png' ),
+            'dst' => imagecreatetruecolor( 128, 128 ),
+          ];
+          
+          $icon->src_w = imagesx( $icon->src );
+          $icon->src_h = imagesy( $icon->src );    
+          
+          $dst_x = 0;
+          $dst_y = 0;
+          $dst_w = 128;
+          $dst_h = 128;
+          
+          if ( $icon->src_w > $icon->src_h ) {
+            $dst_w = round( ( $icon->src_w / $icon->src_h ) * $dst_h );
+            $dst_x = 0 - round( ( $dst_w - 128 ) / 2 );
+          } elseif ( $icon->src_w < $icon->src_h ) {
+            $dst_h = round( ( $icon->src_h / $icon->src_w ) * $dst_w );
+            $dst_y = 0 - round( ( $dst_h - 128 ) / 2 );
+          }
+          imagecopyresampled( $icon->dst, $icon->src, $dst_x, $dst_y, 0, 0, $dst_w, $dst_h, $icon->src_w, $icon->src_h );
+          imagedestroy( $icon->src );
+          imagepng( $icon->dst, $metadir . '/icon_square.png' );
+          imagedestroy( $icon->dst );
+          
+          unset( $icon );
+          
+          print '... Artwork created.' . "\n";
+          print '... Done!' . "\n";
+        }
+            
+        $print = [ '[Desktop Entry]' ];
+        $print[] = 'Version=1.0';
+        $print[] = 'Name=' . $item->label;
+        $print[] = 'Comment=Launch this game on RetroArch';
+        $print[] = 'Type=Application';
+        $print[] = 'Categories=Game';
+        $print[] = 'Exec="' . $filename . '"';
+        $print[] = 'Icon=' . $metadir . '/icon_square.png';
+        $print[] = 'MimeType=application/x-shellscript';
+        $print[] = 'Terminal=false';
+
+        if ( file_exists( '~/.local/share/applications/' . $item->label . '.desktop' ) ) {
+          print 'Skipping "' . $item->label . '" application icon...' . "\n";
+        } else {
+          print 'Creating "' . $item->label . '" application icon...' . "\n";
+          file_put_contents( '~/.local/share/applications/' . $item->label . '.desktop', implode( "\n", $print ) );
+          print '... File created.' . "\n";
+          $result = exec( '/usr/bin/gio set "~/.local/share/applications/' . $item->label . '.desktop" metadata::trusted true' );
+          if ( false !== $result ) {
+            print '... File metadata successful.' . "\n";
+          } else {
+            print '... File metadata error.' . "\n";
+          }
+          chmod( '~/.local/share/applications/' . $item->label . '.desktop', 0750 );
+          print '... File permissions set.' . "\n";
+          print '... Done!' . "\n";
+        }
+        
+        if ( 0 === $index ) {
+          if ( file_exists( '~/Desktop/Resume Retroarch.desktop' ) ) {
+            print 'Deleted existing Resume Retroarch shortcut...' . "\n";
+            unlink( '~/Desktop/Resume Retroarch.desktop' );
+            print '... Done!' . "\n";
+          }
+          if ( !file_exists( '~/Desktop/Resume Retroarch.desktop' ) ) {
+            print 'Creating new Resume Retroarch shortcut to "' . $item->label . '"...' . "\n";
+            file_put_contents( '~/Desktop/Resume Retroarch.desktop', implode( "\n", $print ) );
+            print '... File created.' . "\n";
+            $result = exec( '/usr/bin/gio set "~/Desktop/Resume Retroarch.desktop" metadata::trusted true' );
+            if ( false !== $result ) {
+              print '... File metadata successful.' . "\n";
+            } else {
+              print '... File metadata error.' . "\n";
+            }
+            chmod( '~/Desktop/Resume Retroarch.desktop', 0750 );
+            print '... File permissions set.' . "\n";
+            print '... Done!' . "\n";
+          }
+        }  
+        unset( $print );
+      }
+
+      print 'Updating desktop database...' . "\n";
+      $result = exec( '/usr/bin/update-desktop-database ~/.local/share/applications' );
+      if ( false !== $result ) {
+        print '... Update successful.' . "\n";
+      } else {
+        print '... Update error.' . "\n";
+      }
+      print '... Done!' . "\n";
+
+      $items_last = $items;
+
+    } else {
+      print 'No change since last check...' . "\n";
+    }
+
+    print 'Waiting 60 seconds for next run...' . "\n";
+    sleep( 60 );
+
+    $exec = file_get_contents( $cfgdir . 'content_history.lpl' );
+
+  } else {
+      print 'Error checking data...' . "\n";
+  }
+
+}
+print '... Exiting!' . "\n";
