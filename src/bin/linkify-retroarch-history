@@ -1,10 +1,16 @@
 #!/usr/bin/env php
 <?php
 
-print 'Hello world!' . "\n";
+print 'Hello world!..' . "\n";
 
-$bindir = '~/Roms/Binaries/';
-$cfgdir = '~/.config/retroarch/';
+$homedir = getenv( 'HOME' );
+if ( empty( $homedir ) || !is_dir( $homedir ) ) {
+  print 'Error finding home directory...' . "\n";
+  exit( 1 );
+}
+
+$bindir = $homedir . '/Roms/Binaries/';
+$cfgdir = $homedir . '/.config/retroarch/';
 
 $exec = file_get_contents( $cfgdir . 'content_history.lpl' );
 
@@ -18,7 +24,7 @@ while ( false !== $exec ) {
     $items = $content_history->items;
     unset( $content_history );
 
-    if ( !isset( $items_last ) || $items_last !== $items ) {
+    if ( !isset( $items_last ) || $items_last != $items ) {
 
       foreach( $items as $index => $item ) {
 
@@ -98,40 +104,40 @@ while ( false !== $exec ) {
         $print[] = 'MimeType=application/x-shellscript';
         $print[] = 'Terminal=false';
 
-        if ( file_exists( '~/.local/share/applications/' . $item->label . '.desktop' ) ) {
+        if ( file_exists( $homedir . '/.local/share/applications/' . $item->label . '.desktop' ) ) {
           print 'Skipping "' . $item->label . '" application icon...' . "\n";
         } else {
           print 'Creating "' . $item->label . '" application icon...' . "\n";
-          file_put_contents( '~/.local/share/applications/' . $item->label . '.desktop', implode( "\n", $print ) );
+          file_put_contents( $homedir . '/.local/share/applications/' . $item->label . '.desktop', implode( "\n", $print ) );
           print '... File created.' . "\n";
-          $result = exec( '/usr/bin/gio set "~/.local/share/applications/' . $item->label . '.desktop" metadata::trusted true' );
+          $result = exec( '/usr/bin/gio set "' . $homedir . '/.local/share/applications/' . $item->label . '.desktop" metadata::trusted true' );
           if ( false !== $result ) {
             print '... File metadata successful.' . "\n";
           } else {
             print '... File metadata error.' . "\n";
           }
-          chmod( '~/.local/share/applications/' . $item->label . '.desktop', 0750 );
+          chmod( $homedir . '/.local/share/applications/' . $item->label . '.desktop', 0750 );
           print '... File permissions set.' . "\n";
           print '... Done!' . "\n";
         }
         
         if ( 0 === $index ) {
-          if ( file_exists( '~/Desktop/Resume Retroarch.desktop' ) ) {
+          if ( file_exists( $homedir . '/Desktop/Resume Retroarch.desktop' ) ) {
             print 'Deleted existing Resume Retroarch shortcut...' . "\n";
-            unlink( '~/Desktop/Resume Retroarch.desktop' );
+            unlink( $homedir . '/Desktop/Resume Retroarch.desktop' );
             print '... Done!' . "\n";
           }
-          if ( !file_exists( '~/Desktop/Resume Retroarch.desktop' ) ) {
+          if ( !file_exists( $homedir . '/Desktop/Resume Retroarch.desktop' ) ) {
             print 'Creating new Resume Retroarch shortcut to "' . $item->label . '"...' . "\n";
-            file_put_contents( '~/Desktop/Resume Retroarch.desktop', implode( "\n", $print ) );
+            file_put_contents( $homedir . '/Desktop/Resume Retroarch.desktop', implode( "\n", $print ) );
             print '... File created.' . "\n";
-            $result = exec( '/usr/bin/gio set "~/Desktop/Resume Retroarch.desktop" metadata::trusted true' );
+            $result = exec( '/usr/bin/gio set "' . $homedir . '/Desktop/Resume Retroarch.desktop" metadata::trusted true' );
             if ( false !== $result ) {
               print '... File metadata successful.' . "\n";
             } else {
               print '... File metadata error.' . "\n";
             }
-            chmod( '~/Desktop/Resume Retroarch.desktop', 0750 );
+            chmod( $homedir . '/Desktop/Resume Retroarch.desktop', 0750 );
             print '... File permissions set.' . "\n";
             print '... Done!' . "\n";
           }
@@ -140,7 +146,7 @@ while ( false !== $exec ) {
       }
 
       print 'Updating desktop database...' . "\n";
-      $result = exec( '/usr/bin/update-desktop-database ~/.local/share/applications' );
+      $result = exec( '/usr/bin/update-desktop-database ' . $homedir . '/.local/share/applications' );
       if ( false !== $result ) {
         print '... Update successful.' . "\n";
       } else {
@@ -154,13 +160,18 @@ while ( false !== $exec ) {
       print 'No change since last check...' . "\n";
     }
 
-    print 'Waiting 60 seconds for next run...' . "\n";
-    sleep( 60 );
-
+    $wait = 256;
+    print 'Waiting...' . "\n";
+    while ( 4 <= $wait ) {
+      print '... Next run in ' . $wait . ' seconds.' . "\n";
+      $wait = $wait / 2;
+      sleep( $wait );
+    }
+    sleep( $wait );
     $exec = file_get_contents( $cfgdir . 'content_history.lpl' );
 
   } else {
-      print 'Error checking data...' . "\n";
+    print 'Error checking data...' . "\n";
   }
 
 }
